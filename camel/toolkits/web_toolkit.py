@@ -12,7 +12,8 @@
 # limitations under the License.
 # ========= Copyright 2023-2024 @ CAMEL-AI.org. All Rights Reserved. =========
 import json
-from typing import List, Dict, Any
+import os
+from typing import Any, Dict, List
 
 from camel.agents import ChatAgent
 from camel.configs import ChatGPTConfig
@@ -23,7 +24,6 @@ from camel.prompts import TextPrompt
 from camel.toolkits.base import BaseToolkit
 from camel.toolkits.function_tool import FunctionTool
 from camel.types import ModelPlatformType, ModelType, RoleType
-import os
 
 # Define a module-level constant for the default ChatGPT configuration
 _DEFAULT_CHATGPT_CONFIG_DICT = ChatGPTConfig(temperature=0.0).as_dict()
@@ -484,8 +484,8 @@ class WebToolkit(BaseToolkit):
 
     def stagehand_screenshot_and_analyze_with_gpt4o(self, url: str) -> str:
         r"""
-        Captures multiple screenshots while scrolling, extracts page text, 
-        and sends each screenshot along with the extracted text to GPT-4o 
+        Captures multiple screenshots while scrolling, extracts page text,
+        and sends each screenshot along with the extracted text to GPT-4o
         for analysis.
 
         Args:
@@ -503,9 +503,12 @@ class WebToolkit(BaseToolkit):
 
         screenshot_folder = "screenshots"
         os.makedirs(screenshot_folder, exist_ok=True)
-        screenshot_base = os.path.join(screenshot_folder, os.path.basename(url).replace("/", "_"))
+        screenshot_base = os.path.join(
+            screenshot_folder, os.path.basename(url).replace("/", "_")
+        )
 
-        # JavaScript code for scrolling, taking screenshots, and extracting text per screenshot
+        # JavaScript code for scrolling, taking screenshots,
+        # and extracting text per screenshot
         js_code = f"""
           const {{ Stagehand }} = require('@browserbasehq/stagehand');
           const z = require('zod');
@@ -520,8 +523,10 @@ class WebToolkit(BaseToolkit):
 
                   let screenshots = [];
                   let totalHeight = 0;
-                  let viewportHeight = await page.evaluate(() => window.innerHeight);
-                  let scrollHeight = await page.evaluate(() => document.body.scrollHeight);
+                  let viewportHeight = await page.evaluate(
+                    () => window.innerHeight);
+                  let scrollHeight = await page.evaluate(
+                    () => document.body.scrollHeight);
                   let scrollY = 0;
                   let index = 0;
 
@@ -535,14 +540,18 @@ class WebToolkit(BaseToolkit):
 
                   // Scroll and take multiple screenshots
                   while (scrollY < scrollHeight) {{
-                      let screenshot_path = "{screenshot_base}_" + index + ".png";
+                      let screenshot_path = "{screenshot_base}_" + 
+                      index + ".png";
                       await page.screenshot({{ path: screenshot_path }});
                       screenshots.push(screenshot_path);
 
                       totalHeight += viewportHeight;
                       scrollY += viewportHeight;
-                      await page.evaluate((height) => window.scrollBy(0, height), viewportHeight);
-                      await page.act({{ action: "Wait a second for scrolling to complete." }});
+                      await page.evaluate((height) => 
+                      window.scrollBy(0, height), 
+                      viewportHeight);
+                      await page.act({{ action: "Wait a second 
+                      for scrolling to complete." }});
                       index++;
                   }}
 
@@ -578,25 +587,34 @@ class WebToolkit(BaseToolkit):
         result_str = self._parse_json_from_output(exec_result)
 
         if not result_str or "screenshots" not in result_str:
-            return json.dumps({"status": "error", "message": "No valid JSON found in node logs."})
+            return json.dumps(
+                {
+                    "status": "error",
+                    "message": "No valid JSON found in node logs.",
+                }
+            )
 
         screenshots = result_str["screenshots"]
         extracted_text = result_str["text"]
 
         # Analyze each screenshot with GPT-4o
-        gpt_results = self._analyze_screenshots_with_gpt4o(screenshots, extracted_text)
+        gpt_results = self._analyze_screenshots_with_gpt4o(
+            screenshots, extracted_text
+        )
 
         # Final response with GPT-4o results
         final_response = {
             "status": "success",
             "link": url,
             "text": extracted_text,
-            "gpt_analysis": gpt_results
+            "gpt_analysis": gpt_results,
         }
 
         return json.dumps(final_response)
 
-    def _analyze_screenshots_with_gpt4o(self, screenshots: List[str], text: str) -> List[Dict[str, Any]]:
+    def _analyze_screenshots_with_gpt4o(
+        self, screenshots: List[str], text: str
+    ) -> List[Dict[str, Any]]:
         r"""
         Sends each screenshot along with extracted text to GPT-4o for analysis.
 
@@ -611,24 +629,30 @@ class WebToolkit(BaseToolkit):
 
         for screenshot in screenshots:
             gpt_input = {
-                "prompt": f"Analyze the following screenshot in the context of the extracted webpage text:\n\n{text}\n\n"
-                          f"Describe the visual elements and provide insights based on the webpage's purpose.",
-                "image": screenshot  # Pass image file for analysis
+                "prompt": f"""Analyze the following screenshot in the 
+                context of the extracted webpage 
+                text:\n\n{text}\n\n"""
+                f"""Describe the visual elements and provide insights 
+                based on the webpage's purpose.""",
+                "image": screenshot,  # Pass image file for analysis
             }
 
             # Send to GPT-4o model
-            response = self.tool_agent.step(input_message=gpt_input)
+            response = self.agent.step(input_message=gpt_input)
 
             # Extract response content
-            gpt_response = response.msgs[-1].content.strip() if response and response.msgs else "No response from model."
+            gpt_response = (
+                response.msgs[-1].content.strip()
+                if response and response.msgs
+                else "No response from model."
+            )
 
-            results.append({
-                "screenshot": screenshot,
-                "analysis": gpt_response
-            })
+            results.append(
+                {"screenshot": screenshot, "analysis": gpt_response}
+            )
 
         return results
-            
+
     def _run_stagehand_script_in_node(self, js_code: str) -> str:
         r"""
         Internal method that executes the Stagehand code under
@@ -732,5 +756,5 @@ class WebToolkit(BaseToolkit):
         return [
             FunctionTool(self.stagehand_tool),
             FunctionTool(self.stagehand_extract_text_images),
-            FunctionTool(self.stagehand_screenshot_and_analyze_with_gpt4o)
+            FunctionTool(self.stagehand_screenshot_and_analyze_with_gpt4o),
         ]

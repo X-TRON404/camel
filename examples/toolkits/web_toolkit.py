@@ -23,7 +23,9 @@ toolkit = WebToolkit(headless_mode=False, debug=True)
 
 stagehand_tool = FunctionTool(toolkit.stagehand_tool)
 web_text_and_image_tool = FunctionTool(toolkit.stagehand_extract_text_images)
-screenshot_tool = FunctionTool(toolkit.stagehand_screenshot_and_analyze_with_gpt4o)
+screenshot_tool = FunctionTool(
+    toolkit.stagehand_screenshot_and_analyze_with_gpt4o
+)
 
 model = ModelFactory.create(
     model_platform=ModelPlatformType.OPENAI, model_type=ModelType.GPT_4O_MINI
